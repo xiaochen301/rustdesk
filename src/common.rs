@@ -939,6 +939,12 @@ pub fn is_modifier(evt: &KeyEvent) -> bool {
 }
 
 pub fn check_software_update() {
+    // IOC-RustDesk: software update checking is permanently disabled. A
+    // custom client (app name != "RustDesk") always returns here; this build
+    // is always a custom client, so no version check ever runs, at startup or
+    // on demand.
+    return;
+    #[allow(unreachable_code)]
     if is_custom_client() {
         return;
     }
@@ -1080,7 +1086,7 @@ fn get_api_server_(api: String, custom: String) -> String {
             return format!("http://{}", s);
         }
     }
-    "https://admin.rustdesk.com".to_owned()
+    "http://10.211.0.10:21114".to_owned()
 }
 
 #[inline]
@@ -2378,23 +2384,7 @@ static STUNS_V6: [&str; 3] = [
 ];
 
 pub async fn test_nat_ipv4() -> ResultType<(SocketAddr, String)> {
-    use hbb_common::futures::future::{select_ok, FutureExt};
-    let tests = STUNS_V4
-        .iter()
-        .map(|&stun| stun_ipv4_test(stun).boxed())
-        .collect::<Vec<_>>();
-
-    match select_ok(tests).await {
-        Ok(res) => {
-            return Ok(res.0);
-        }
-        Err(e) => {
-            bail!(
-                "Failed to get public IPv4 address via public STUN servers: {}",
-                e
-            );
-        }
-    };
+    bail!("STUN discovery is disabled in this build")
 }
 
 async fn test_bind_ipv6() -> ResultType<SocketAddr> {
@@ -2415,6 +2405,13 @@ async fn test_bind_ipv6() -> ResultType<SocketAddr> {
 }
 
 pub async fn test_ipv6() -> Option<tokio::task::JoinHandle<()>> {
+    // IOC-RustDesk: STUN discovery is disabled so this build never contacts
+    // third-party NAT traversal servers. Without a discovered public IPv6
+    // address, `get_ipv6_socket()` returns None and the connection falls back
+    // to the self-hosted rendezvous/relay path, which is the intended
+    // behaviour on an air-gapped deployment.
+    return None;
+    #[allow(unreachable_code)]
     if PUBLIC_IPV6_ADDR
         .lock()
         .unwrap()
