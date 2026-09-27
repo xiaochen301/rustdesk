@@ -22,9 +22,11 @@ env:
   LLVM_VERSION: "15.0.6"
   FLUTTER_VERSION: "3.24.5"
   VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
-  # vcpkg version 2026.07.29 — keep in sync with vcpkg.json (see upstream comment
-  # in flutter-build.yml about x-update-baseline).
-  VCPKG_COMMIT_ID: "9e593bb18ea69cc5095e012465dcd675a822ed0d"
+  # Must match upstream flutter-build.yml for tag 1.4.9. Upstream note: when this
+  # changes, run `vcpkg x-update-baseline` and sync ci.yml / playground.yml. A
+  # commit that does not match the tree breaks the Windows vcpkg step
+  # (nasm: unrecognised option `-V', then detect_compiler fails).
+  VCPKG_COMMIT_ID: "120deac3062162151622ca4860575a33844ba10b"
   VERSION: "1.4.9"
   UPLOAD_ARTIFACT: true
 
@@ -331,6 +333,11 @@ jobs:
 
             # Setup Flutter
             git config --global --add safe.directory "*"
+            # PATH must be exported before the first flutter call: the tarball
+            # extracts to /opt/flutter, and `flutter doctor` below runs before
+            # the export that used to sit further down, so it died with
+            # "flutter: command not found" (exit 127).
+            export PATH=/opt/flutter/bin:$PATH
             pushd /opt
             wget https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${{ env.FLUTTER_VERSION }}-stable.tar.xz
             tar xf flutter_linux_${{ env.FLUTTER_VERSION }}-stable.tar.xz
@@ -341,7 +348,6 @@ jobs:
 
             # build flutter + deb (no rpm, no arch, no appimage)
             pushd /workspace
-            export PATH=/opt/flutter/bin:$PATH
             export DEB_ARCH=${{ matrix.job.deb_arch }}
             python3 ./build.py --flutter --skip-cargo
             ls -l /workspace/*.deb
